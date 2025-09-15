@@ -59,10 +59,54 @@ async def _handle_search(update: Update, context: ContextTypes.DEFAULT_TYPE, que
         await searching_msg.edit_text("No results.")
         return
     track_meta = results[0]
+    svc = get_youtube_service()
+    cached = svc.find_cached_file(track_meta.id)
+    if cached:
+        # Send from cache immediately
+        try:
+            with open(cached, 'rb') as f:
+                await update.effective_chat.send_audio(
+                    audio=InputFile(f, filename=os.path.basename(cached)),
+                    title=track_meta.title,
+                    performer=track_meta.uploader or "Unknown",
+                    duration=track_meta.duration or 0,
+                    caption=f"@i_am_web_music_bot",
+                )
+            record_download(update.effective_user, track_meta)
+            try:
+                await searching_msg.delete()
+            except Exception:
+                pass
+            return
+        except Exception:
+            logging.exception("Failed sending cached file; will re-download.")
     await searching_msg.edit_text(f"Found: {track_meta.title}\nStarting download…")
     await _auto_download_and_send(update, context, track_meta, searching_msg)
 
 async def _auto_download_and_send(update: Update, context: ContextTypes.DEFAULT_TYPE, track_meta: TrackMeta, search_message: Message | None = None):
+    # Before creating progress message, double-check cache (race safety)
+    svc = get_youtube_service()
+    cached = svc.find_cached_file(track_meta.id)
+    if cached and os.path.isfile(cached):
+        try:
+            with open(cached, 'rb') as f:
+                await update.effective_chat.send_audio(
+                    audio=InputFile(f, filename=os.path.basename(cached)),
+                    title=track_meta.title,
+                    performer=track_meta.uploader or "Unknown",
+                    duration=track_meta.duration or 0,
+                    caption=f"@i_am_web_music_bot",
+                )
+            record_download(update.effective_user, track_meta)
+            if search_message:
+                try:
+                    await search_message.delete()
+                except Exception:
+                    pass
+            return
+        except Exception:
+            logging.exception("Failed sending cached file inside _auto_download_and_send; proceeding to download.")
+
     progress_message = await update.effective_chat.send_message(f"Downloading: {track_meta.title} …")
     chat_id = progress_message.chat_id
     message_id = progress_message.message_id
@@ -101,7 +145,7 @@ async def _auto_download_and_send(update: Update, context: ContextTypes.DEFAULT_
                 title=final_meta.title,
                 performer=final_meta.uploader or "Unknown",
                 duration=final_meta.duration or 0,
-                caption=f"Source: {final_meta.url}",
+                caption=f"@i_am_web_music_bot",
             )
     except Exception:
         logging.exception("Failed sending audio")

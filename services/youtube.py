@@ -1,4 +1,3 @@
-
 import asyncio
 import re
 import os
@@ -51,6 +50,21 @@ class YouTubeService:
     def normalize_url(url: str) -> str:
         return url.strip()
 
+    @staticmethod
+    def cached_path_for(track_id: str) -> str:
+        return os.path.join(DOWNLOAD_DIR, f"{track_id}.mp3")
+
+    @staticmethod
+    def find_cached_file(track_id: str) -> str | None:
+        if not track_id:
+            return None
+        path = YouTubeService.cached_path_for(track_id)
+        if os.path.isfile(path):
+            return path
+        # fallback: legacy pattern search (title-random.mp3) not deterministic; skip for now
+        # Could implement glob search if needed
+        return None
+
     async def search(self, query: str, limit: int = 5) -> List[TrackMeta]:
         search_q = self._build_search_query(query, limit)
         def _extract():
@@ -81,7 +95,8 @@ class YouTubeService:
             opts = {
                 **YDL_AUDIO_OPTS_BASE,
                 'skip_download': False,
-                'outtmpl': os.path.join(DOWNLOAD_DIR, f"%(title)s-{tmp_id}.%(ext)s"),
+                # deterministic filename: id.ext (yt-dlp will substitute id)
+                'outtmpl': os.path.join(DOWNLOAD_DIR, '%(id)s.%(ext)s'),
                 'postprocessors': [{
                     'key': 'FFmpegExtractAudio',
                     'preferredcodec': 'mp3',
@@ -93,11 +108,11 @@ class YouTubeService:
                 info = ydl.extract_info(safe_url, download=True)
                 if 'entries' in info:
                     info = info['entries'][0]
-                base = ydl.prepare_filename(info)
-                for ext in ('.m4a', '.webm', '.opus', '.mp4'):
-                    if base.endswith(ext):
-                        base = base[: -len(ext)] + '.mp3'
-                        break
+                final_path = self.cached_path_for(info.get('id')) if info.get('id') else ydl.prepare_filename(info)
+                if not final_path.endswith('.mp3'):
+                    # ensure mp3 extension
+                    base = os.path.splitext(final_path)[0]
+                    final_path = base + '.mp3'
                 meta = TrackMeta(
                     id=info.get('id'),
                     title=info.get('title'),
@@ -106,7 +121,7 @@ class YouTubeService:
                     uploader=info.get('uploader'),
                     thumbnail=info.get('thumbnail'),
                 )
-                return base, meta
+                return final_path, meta
         return await asyncio.to_thread(_download)
 
 _youtube_service: YouTubeService | None = None
@@ -116,4 +131,3 @@ def get_youtube_service() -> YouTubeService:
     if _youtube_service is None:
         _youtube_service = YouTubeService()
     return _youtube_service
-
