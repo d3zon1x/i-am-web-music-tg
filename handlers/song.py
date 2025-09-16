@@ -4,12 +4,12 @@ import os
 from typing import List
 from telegram import Update, InputFile, Message
 from telegram.ext import ContextTypes, CommandHandler, MessageHandler, filters
-from telegram.constants import ParseMode
 
 from utils.states import get_mode, set_mode, reset_mode, UserMode
 from utils.keyboard import main_menu_keyboard
 from services.youtube import get_youtube_service, TrackMeta
 from services.repository import record_download
+from services.media import ensure_thumbnail
 
 
 # Handlers
@@ -62,8 +62,16 @@ async def _handle_search(update: Update, context: ContextTypes.DEFAULT_TYPE, que
     svc = get_youtube_service()
     cached = svc.find_cached_file(track_meta.id)
     if cached:
-        # Send from cache immediately
         try:
+            thumb_res = await ensure_thumbnail(track_meta.thumbnail, track_meta.id)
+            thumb_input = None
+            thumb_fh = None
+            if thumb_res:
+                try:
+                    thumb_fh = open(thumb_res.path, 'rb')
+                    thumb_input = InputFile(thumb_fh)
+                except Exception:
+                    thumb_input = None
             with open(cached, 'rb') as f:
                 await update.effective_chat.send_audio(
                     audio=InputFile(f, filename=os.path.basename(cached)),
@@ -71,8 +79,14 @@ async def _handle_search(update: Update, context: ContextTypes.DEFAULT_TYPE, que
                     performer=track_meta.uploader or "Unknown",
                     duration=track_meta.duration or 0,
                     caption=f"@i_am_web_music_bot",
+                    thumbnail=thumb_input,
                 )
             record_download(update.effective_user, track_meta)
+            if thumb_fh:
+                try:
+                    thumb_fh.close()
+                except Exception:
+                    pass
             try:
                 await searching_msg.delete()
             except Exception:
@@ -84,11 +98,19 @@ async def _handle_search(update: Update, context: ContextTypes.DEFAULT_TYPE, que
     await _auto_download_and_send(update, context, track_meta, searching_msg)
 
 async def _auto_download_and_send(update: Update, context: ContextTypes.DEFAULT_TYPE, track_meta: TrackMeta, search_message: Message | None = None):
-    # Before creating progress message, double-check cache (race safety)
     svc = get_youtube_service()
     cached = svc.find_cached_file(track_meta.id)
     if cached and os.path.isfile(cached):
         try:
+            thumb_res = await ensure_thumbnail(track_meta.thumbnail, track_meta.id)
+            thumb_input = None
+            thumb_fh = None
+            if thumb_res:
+                try:
+                    thumb_fh = open(thumb_res.path, 'rb')
+                    thumb_input = InputFile(thumb_fh)
+                except Exception:
+                    thumb_input = None
             with open(cached, 'rb') as f:
                 await update.effective_chat.send_audio(
                     audio=InputFile(f, filename=os.path.basename(cached)),
@@ -96,8 +118,14 @@ async def _auto_download_and_send(update: Update, context: ContextTypes.DEFAULT_
                     performer=track_meta.uploader or "Unknown",
                     duration=track_meta.duration or 0,
                     caption=f"@i_am_web_music_bot",
+                    thumbnail=thumb_input,
                 )
             record_download(update.effective_user, track_meta)
+            if thumb_fh:
+                try:
+                    thumb_fh.close()
+                except Exception:
+                    pass
             if search_message:
                 try:
                     await search_message.delete()
@@ -137,6 +165,15 @@ async def _auto_download_and_send(update: Update, context: ContextTypes.DEFAULT_
         return
 
     try:
+        thumb_res = await ensure_thumbnail(final_meta.thumbnail, final_meta.id)
+        thumb_input = None
+        thumb_fh = None
+        if thumb_res:
+            try:
+                thumb_fh = open(thumb_res.path, 'rb')
+                thumb_input = InputFile(thumb_fh)
+            except Exception:
+                thumb_input = None
         with open(file_path, 'rb') as f:
             audio = InputFile(f, filename=os.path.basename(file_path))
             await context.bot.send_audio(
@@ -146,7 +183,13 @@ async def _auto_download_and_send(update: Update, context: ContextTypes.DEFAULT_
                 performer=final_meta.uploader or "Unknown",
                 duration=final_meta.duration or 0,
                 caption=f"@i_am_web_music_bot",
+                thumbnail=thumb_input,
             )
+        if thumb_fh:
+            try:
+                thumb_fh.close()
+            except Exception:
+                pass
     except Exception:
         logging.exception("Failed sending audio")
         await _edit_progress("Failed to send audio.")
