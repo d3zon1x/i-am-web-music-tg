@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, func, Boolean, UniqueConstraint, Index
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, func, Boolean, UniqueConstraint, Index, BigInteger
 from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
@@ -9,12 +9,12 @@ class User(Base):
         Index("ix_users_created_at", "created_at"),
     )
 
-    id = Column(Integer, primary_key=True, index=True)  # Telegram user_id
+    id = Column(BigInteger, primary_key=True, index=True)  # Telegram user_id
     username = Column(String, nullable=True)
     first_name = Column(String, nullable=True)
     last_name = Column(String, nullable=True)
     website_linked = Column(Boolean, default=False)
-    website_link_code = Column(Integer, nullable=False, unique=True)
+    website_link_code = Column(BigInteger, nullable=False, unique=True)
     user_state = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -48,7 +48,7 @@ class History(Base):
     )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    user_id = Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), index=True)
     track_id = Column(Integer, ForeignKey("tracks.id", ondelete="CASCADE"), index=True)
     downloaded_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -64,7 +64,7 @@ class Favorite(Base):
     )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    user_id = Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), index=True)
     track_id = Column(Integer, ForeignKey("tracks.id", ondelete="CASCADE"), index=True)
 
     user = relationship("User", back_populates="favorites")

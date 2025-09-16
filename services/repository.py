@@ -6,7 +6,7 @@ from random import randint
 
 def _generate_unique_link_code(session):
     while True:
-        code = randint(100000, 999999)
+        code = randint(10000000, 99999999)
         if not session.query(User).filter_by(website_link_code=code).first():
             return code
 
@@ -50,3 +50,5 @@ def record_download(tg_user, track_meta: TrackMeta) -> None:
         user = get_or_create_user(session, tg_user)
         track = get_or_create_track(session, track_meta)
         add_history(session, user, track)
+
+
