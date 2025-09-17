@@ -1,11 +1,13 @@
 import asyncio
 import logging
+import os
 from telegram import Update
 from telegram.ext import Application, ContextTypes
 
 from config import TELEGRAM_TOKEN
 from db.db_session import init_db
 from handlers.song import build_handlers
+from services.http_api import FlaskService
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     logging.exception("Unhandled exception while handling update: %s", update)
@@ -17,10 +19,17 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
             pass
 
 
-def create_application() -> Application:
+def create_application(http_bridge: FlaskService | None = None) -> Application:
     if not TELEGRAM_TOKEN or TELEGRAM_TOKEN == 'REPLACE_WITH_YOUR_TOKEN':
         raise RuntimeError("Telegram bot token not set")
-    app = Application.builder().token(TELEGRAM_TOKEN).build()
+
+    async def _post_init(app: Application):
+        # Bind PTB's running loop to HTTP bridge for cross-thread scheduling
+        if http_bridge is not None:
+            http_bridge.attach_application(app)
+            http_bridge.set_loop(asyncio.get_running_loop())
+
+    app = Application.builder().token(TELEGRAM_TOKEN).post_init(_post_init).build()
     for h in build_handlers():
         app.add_handler(h)
     app.add_error_handler(error_handler)
@@ -35,7 +44,16 @@ def main():
     logging.info("Initializing database…")
     init_db()
     logging.info("Database ready.")
-    app = create_application()
+
+    # Start lightweight HTTP bridge for website -> bot actions
+    flask_host = os.getenv('FLASK_HOST', '127.0.0.1')
+    flask_port = int(os.getenv('FLASK_PORT', '5001'))
+    flask_api_key = os.getenv('FLASK_API_KEY')
+    http_bridge = FlaskService(host=flask_host, port=flask_port, api_key=flask_api_key)
+    http_bridge.start()
+
+    app = create_application(http_bridge)
+
     logging.info("Starting bot polling…")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 

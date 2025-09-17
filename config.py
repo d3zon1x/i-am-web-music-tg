@@ -10,9 +10,7 @@ TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN') or os.getenv('BOT_TOKEN')
 if not TELEGRAM_TOKEN:
     raise RuntimeError('TELEGRAM_TOKEN not set in environment (.env)')
 
-# Database: Postgres ONLY (shared with Django). Two options:
-# 1. Provide full URL in MUSIC_BOT_DB_URL
-# 2. Provide PG_USER, PG_PASSWORD, PG_HOST, PG_PORT, PG_DB
+# Database
 MUSIC_BOT_DB_URL = os.getenv('MUSIC_BOT_DB_URL')
 if not MUSIC_BOT_DB_URL:
     PG_USER = os.getenv('PG_USER')
@@ -27,7 +25,7 @@ if not MUSIC_BOT_DB_URL:
 if not MUSIC_BOT_DB_URL.startswith('postgresql'):
     raise RuntimeError('Only PostgreSQL is supported. MUSIC_BOT_DB_URL must start with postgresql')
 
-# SQLAlchemy tuning
+# SQLAlchemy
 SQL_ECHO = os.getenv('SQL_ECHO', '0') == '1'
 DB_POOL_SIZE = int(os.getenv('DB_POOL_SIZE', '5'))
 DB_MAX_OVERFLOW = int(os.getenv('DB_MAX_OVERFLOW', '10'))
