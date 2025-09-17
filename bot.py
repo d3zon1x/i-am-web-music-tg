@@ -6,7 +6,8 @@ from telegram.ext import Application, ContextTypes
 
 from config import TELEGRAM_TOKEN
 from db.db_session import init_db
-from handlers.song import build_handlers
+from handlers.song import build_handlers as build_song_handlers
+from handlers.account import build_handlers as build_account_handlers
 from services.http_api import FlaskService
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -30,7 +31,10 @@ def create_application(http_bridge: FlaskService | None = None) -> Application:
             http_bridge.set_loop(asyncio.get_running_loop())
 
     app = Application.builder().token(TELEGRAM_TOKEN).post_init(_post_init).build()
-    for h in build_handlers():
+    # Register handlers
+    for h in build_song_handlers():
+        app.add_handler(h)
+    for h in build_account_handlers():
         app.add_handler(h)
     app.add_error_handler(error_handler)
     return app

@@ -25,7 +25,9 @@ if not MUSIC_BOT_DB_URL:
 if not MUSIC_BOT_DB_URL.startswith('postgresql'):
     raise RuntimeError('Only PostgreSQL is supported. MUSIC_BOT_DB_URL must start with postgresql')
 
-# SQLAlchemy
+WEBAPP_URL = os.getenv('WEBAPP_URL', 'http://localhost:5173')
+
+# SQLAlchemy tuning
 SQL_ECHO = os.getenv('SQL_ECHO', '0') == '1'
 DB_POOL_SIZE = int(os.getenv('DB_POOL_SIZE', '5'))
 DB_MAX_OVERFLOW = int(os.getenv('DB_MAX_OVERFLOW', '10'))
@@ -38,4 +40,5 @@ __all__ = [
     'DB_POOL_SIZE',
     'DB_MAX_OVERFLOW',
     'LOG_LEVEL',
+    'WEBAPP_URL',
 ]

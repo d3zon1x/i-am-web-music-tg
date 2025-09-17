@@ -25,6 +25,26 @@ def get_or_create_user(session, tg_user) -> User:
     return user
 
 
+def get_user(tg_user_id: int) -> User | None:
+    with get_session() as session:
+        return session.get(User, tg_user_id)
+
+
+def request_link_code(tg_user) -> int:
+    with get_session() as session:
+        user = get_or_create_user(session, tg_user)
+        user.website_linked = False
+        user.website_link_code = _generate_unique_link_code(session)
+        return user.website_link_code
+
+
+def disconnect_user(tg_user) -> None:
+    with get_session() as session:
+        user = get_or_create_user(session, tg_user)
+        user.website_linked = False
+        user.website_link_code = _generate_unique_link_code(session)
+
+
 def get_or_create_track(session, meta: TrackMeta) -> Track:
     track = session.query(Track).filter_by(youtube_url=meta.url).first()
     if not track:
@@ -52,3 +72,15 @@ def record_download(tg_user, track_meta: TrackMeta) -> None:
         add_history(session, user, track)
 
 
+def get_user_by_link_code(code: int) -> User | None:
+    with get_session() as session:
+        return session.query(User).filter(User.website_link_code == code).first()
+
+
+def mark_user_linked_by_code(code: int) -> bool:
+    with get_session() as session:
+        user = session.query(User).filter(User.website_link_code == code).first()
+        if not user:
+            return False
+        user.website_linked = True
+        return True
