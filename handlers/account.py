@@ -5,8 +5,8 @@ from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
 
 from utils.keyboard import account_inline_keyboard
 from services.repository import request_link_code, disconnect_user, get_user
-# from config import WEBAPP_URL
-WEBAPP_URL = "https://example.com"  # Replace with actual URL or import from config
+from config import WEBAPP_URL
+
 
 async def cmd_account(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = get_user(update.effective_user.id)
@@ -29,16 +29,13 @@ async def handle_linking_callback(update: Update, context: ContextTypes.DEFAULT_
             logging.exception("Failed to generate link code")
             await query.edit_message_text("Failed to generate code. Try again later.")
             return
-        # deep_link = f"{WEBAPP_URL.rstrip('/')}/link?code={code}"
-        # text = (
-        #     "Your linking code: <code>{code}</code>\n"
-        #     "Open the website and enter the code to complete linking.\n"
-        #     "Quick link: {deep_link}"
-        # ).format(code=code, deep_link=deep_link)
+        deep_link = f"{WEBAPP_URL.rstrip('/')}/link?code={code}"
         text = (
             "Your linking code: <code>{code}</code>\n"
             "Open the website and enter the code to complete linking.\n"
-        ).format(code=code)
+            "Quick link: {deep_link}"
+        ).format(code=code, deep_link=deep_link)
+
         await query.edit_message_text(
             text=text,
             parse_mode="HTML",

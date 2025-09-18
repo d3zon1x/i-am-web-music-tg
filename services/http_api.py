@@ -76,8 +76,8 @@ class FlaskService:
 
         @self.app.post('/api/link_by_code')
         def link_by_code():
-            if not self._check_auth(request):
-                return jsonify({"error": "unauthorized"}), 401
+            # if not self._check_auth(request):
+            #     return jsonify({"error": "unauthorized"}), 401
             data: Dict[str, Any] = request.get_json(silent=True) or {}
             code = data.get('code')
             try:
@@ -99,8 +99,8 @@ class FlaskService:
 
         @self.app.post('/api/send_song_by_code')
         def send_song_by_code():
-            if not self._check_auth(request):
-                return jsonify({"error": "unauthorized"}), 401
+            # if not self._check_auth(request):
+            #     return jsonify({"error": "unauthorized"}), 401
             data: Dict[str, Any] = request.get_json(silent=True) or {}
             code = data.get('code')
             query = (data.get('query') or '').strip()
