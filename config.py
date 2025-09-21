@@ -25,7 +25,7 @@ if not MUSIC_BOT_DB_URL:
 if not MUSIC_BOT_DB_URL.startswith('postgresql'):
     raise RuntimeError('Only PostgreSQL is supported. MUSIC_BOT_DB_URL must start with postgresql')
 
-WEBAPP_URL = os.getenv('WEBAPP_URL', 'http://localhost:5173')
+WEBAPP_URL = os.getenv('WEBAPP_URL', 'http://localhost:8000')
 
 # SQLAlchemy tuning
 SQL_ECHO = os.getenv('SQL_ECHO', '0') == '1'

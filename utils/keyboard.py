@@ -15,6 +15,5 @@ def account_inline_keyboard(website_url: str, linked: bool) -> InlineKeyboardMar
     link_cb_data = "link:disconnect" if linked else "link:request"
     buttons = [
         [InlineKeyboardButton(link_btn_text, callback_data=link_cb_data)],
-        [InlineKeyboardButton("Open Website", url=website_url)],
     ]
     return InlineKeyboardMarkup(buttons)

@@ -13,6 +13,9 @@ from telegram.ext import Application
 from services.youtube import get_youtube_service, TrackMeta
 from services.media import ensure_thumbnail
 from services.repository import record_download, get_user_by_link_code, mark_user_linked_by_code
+from services.link_state import get_link_message, clear_link_message
+from utils.keyboard import account_inline_keyboard
+from config import WEBAPP_URL
 
 
 class FlaskService:
@@ -95,6 +98,9 @@ class FlaskService:
             if not ok:
                 return jsonify({"error": "invalid code"}), 404
             user = get_user_by_link_code(code)
+            # Schedule message update in bot loop
+            if user and self._application:
+                self._schedule(self._link_success_task, user.id)
             return jsonify({"status": "linked", "user_id": user.id if user else None})
 
         @self.app.post('/api/send_song_by_code')
@@ -210,3 +216,20 @@ class FlaskService:
             await msg.edit_text("Downloaded from website")
         except Exception:
             logging.exception("FlaskService: failed to edit status message for chat %s", chat_id)
+
+    async def _link_success_task(self, user_id: int):
+        ref = get_link_message(user_id)
+        if not ref:
+            return
+        chat_id, message_id = ref
+        try:
+            await self._application.bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=message_id,
+                text="Linked successfully. You can now use the website.",
+                reply_markup=account_inline_keyboard(WEBAPP_URL, linked=True),
+            )
+        except Exception:
+            logging.exception("FlaskService: failed to edit link success message for %s", user_id)
+        finally:
+            clear_link_message(user_id)
