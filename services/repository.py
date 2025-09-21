@@ -84,3 +84,13 @@ def mark_user_linked_by_code(code: int) -> bool:
             return False
         user.website_linked = True
         return True
+
+
+def logout_user_by_id(user_id: int) -> bool:
+    with get_session() as session:
+        user = session.get(User, user_id)
+        if not user:
+            return False
+        user.website_linked = False
+        user.website_link_code = _generate_unique_link_code(session)
+        return True

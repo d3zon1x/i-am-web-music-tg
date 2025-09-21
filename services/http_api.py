@@ -12,7 +12,7 @@ from telegram.ext import Application
 
 from services.youtube import get_youtube_service, TrackMeta
 from services.media import ensure_thumbnail
-from services.repository import record_download, get_user_by_link_code, mark_user_linked_by_code
+from services.repository import record_download, get_user_by_link_code, mark_user_linked_by_code, logout_user_by_id
 from services.link_state import get_link_message, clear_link_message
 from utils.keyboard import account_inline_keyboard
 from config import WEBAPP_URL
@@ -145,6 +145,48 @@ class FlaskService:
                 return jsonify({"error": "bot loop not running"}), 503
             return jsonify({"status": "scheduled", "chat_id": chat_id, "query": query})
 
+        @self.app.post('/api/logout')
+        def logout():
+            if not self._check_auth(request):
+                return jsonify({"error": "unauthorized"}), 401
+            data: Dict[str, Any] = request.get_json(silent=True) or {}
+            user_id = data.get('user_id')
+            code = data.get('code')
+            source = (data.get('source') or '').lower()  # e.g. 'web'
+            target_user_id = None
+            if user_id:
+                try:
+                    target_user_id = int(user_id)
+                except Exception:
+                    return jsonify({"error": "invalid user_id"}), 400
+            elif code:
+                try:
+                    c = int(code)
+                except Exception:
+                    return jsonify({"error": "invalid code"}), 400
+                u = get_user_by_link_code(c)
+                if not u:
+                    return jsonify({"error": "code not found"}), 404
+                target_user_id = u.id
+            else:
+                return jsonify({"error": "user_id or code required"}), 400
+
+            ok = logout_user_by_id(target_user_id)
+            if not ok:
+                return jsonify({"error": "user not found"}), 404
+
+            # Clear any pending link message so it is not later edited
+            clear_link_message(target_user_id)
+
+            # Notify user in Telegram (fire and forget) if bot running
+            if self._application:
+                if source == 'web':
+                    note = "Website logout: you disconnected this session from the site. Use /account to link again."
+                else:
+                    note = "You have been disconnected from the website session. Use /account to link again."
+                self._schedule(self._notify_logout_task, target_user_id, note)
+            return jsonify({"status": "logged_out", "user_id": target_user_id})
+
     async def _send_song_task(self, chat_id: int, query: str):
         msg = await self._application.bot.send_message(chat_id=chat_id, text="Download from website started. Please wait…")
 
@@ -233,3 +275,9 @@ class FlaskService:
             logging.exception("FlaskService: failed to edit link success message for %s", user_id)
         finally:
             clear_link_message(user_id)
+
+    async def _notify_logout_task(self, user_id: int, message: str):
+        try:
+            await self._application.bot.send_message(chat_id=user_id, text=message)
+        except Exception:
+            logging.exception("FlaskService: failed to notify user %s about logout", user_id)
