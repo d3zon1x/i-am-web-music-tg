@@ -12,9 +12,14 @@ from config import WEBAPP_URL
 async def cmd_account(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = get_user(update.effective_user.id)
     linked = bool(user and user.website_linked)
-    await update.message.reply_text(
+    text = (
         "Account linking status:\n"
-        f"{'✅ Linked' if linked else '❌ Not linked'}\n\n",
+        f"{'✅ Linked' if linked else '❌ Not linked'}\n\n"+
+        f'{f"Your code:\n<code>{user.website_link_code if user else 'N/A'}</code>\n\n" if linked else ""}'
+    ).format(code = user.website_link_code if user else 'N/A')
+    await update.message.reply_text(
+        text=text,
+        parse_mode="HTML",
         reply_markup=account_inline_keyboard(WEBAPP_URL, linked),
     )
 
@@ -33,22 +38,30 @@ async def handle_linking_callback(update: Update, context: ContextTypes.DEFAULT_
             return
         deep_link = f"{WEBAPP_URL.rstrip('/')}/link?code={code}"
         text = (
-            "Your linking code: <code>{code}</code>\n"
-            "Open the website and enter the code to complete linking.\n"
-            "Quick link: {deep_link}"
-        ).format(code=code, deep_link=deep_link)
+            "Your linking code:\n <code>{code}</code>\n"
+            "Open the website and enter the code to complete linking.\n\n"
+            "Quick link below:\n"
+            # '<a href="{deep_link}">{deep_link}</a>'
+        ).format(code=code)
+
+        link_html = f'<a href="{deep_link}">{deep_link}</a>'
 
         try:
-            new_msg = await query.edit_message_text(
+            new_msg1 = await query.edit_message_text(
                 text=text,
                 parse_mode="HTML",
-                reply_markup=account_inline_keyboard(WEBAPP_URL, linked=False),
             )
-            if new_msg:  # store message reference for later success edit
+            await query.message.reply_text(
+                text=f"{link_html}",
+                parse_mode="HTML",
+                disable_web_page_preview=True,
+            )
+
+            if new_msg1:  # store message reference for later success edit
                 register_link_message(
                     update.effective_user.id,
-                    new_msg.chat_id,
-                    new_msg.message_id,
+                    new_msg1.chat_id,
+                    new_msg1.message_id,
                 )
         except Exception:
             logging.exception("Failed to edit message with code")

@@ -1,4 +1,5 @@
 from telegram import ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton
+from urllib.parse import urlparse
 
 MAIN_MENU_LAYOUT = [
     ["📥 Download"],
@@ -11,9 +12,13 @@ def main_menu_keyboard() -> ReplyKeyboardMarkup:
 
 
 def account_inline_keyboard(website_url: str, linked: bool) -> InlineKeyboardMarkup:
-    link_btn_text = "Disconnect" if linked else "Link account"
-    link_cb_data = "link:disconnect" if linked else "link:request"
-    buttons = [
-        [InlineKeyboardButton(link_btn_text, callback_data=link_cb_data)],
-    ]
+    if linked:
+        # No disconnect button anymore – only website button if public.
+        buttons = []
+
+        # If no public site, return empty keyboard (Telegram allows no buttons) – user just reads message.
+        return InlineKeyboardMarkup(buttons) if buttons else InlineKeyboardMarkup([])
+    # Not linked: allow requesting a code.
+    buttons = [[InlineKeyboardButton("Link account", callback_data="link:request")]]
+
     return InlineKeyboardMarkup(buttons)
